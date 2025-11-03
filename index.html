@@ -101,6 +101,26 @@
     color: var(--text-secondary);
   }
 
+  .sync-status {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    padding: 10px 15px;
+    border-radius: 12px;
+    backdrop-filter: blur(10px);
+    font-size: 0.9rem;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .sync-status.connected {
+    color: var(--success);
+  }
+
+  .sync-status.disconnected {
+    color: var(--danger);
+  }
+
   .input-section {
     background: var(--bg-card);
     backdrop-filter: blur(10px);
@@ -483,6 +503,33 @@
     font-weight: 600;
   }
 
+  .loading {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    backdrop-filter: blur(5px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+  }
+
+  .loading-spinner {
+    width: 50px;
+    height: 50px;
+    border: 4px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
   @media (max-width: 768px) {
     .tables-container {
       grid-template-columns: 1fr;
@@ -505,12 +552,20 @@
 </head>
 <body data-theme="dark">
 
+<div id="loadingScreen" class="loading">
+  <div class="loading-spinner"></div>
+</div>
+
 <div class="container">
   <div class="header">
     <h1>🏆 Sistema de Puntuación Semanal</h1>
     <div class="controls">
+      <div class="sync-status connected" id="syncStatus">
+        <span>🔄</span>
+        <span id="syncText">Conectando...</span>
+      </div>
       <div class="session-timer" id="sessionTimer" style="display:none;">
-        ⏱️ Sesión: <span id="timerText">5:00</span>
+        ⏱️ Sesión: <span id="timerText">10:00</span>
       </div>
       <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
       <button class="unlock-btn" onclick="showUnlockModal()">🔓</button>
@@ -535,7 +590,7 @@
       <button class="btn-danger" id="btnSemana" onclick="showNewWeekModal()" disabled>
         📅 Nueva Semana
       </button>
-      
+
     </div>
     <div class="counter" id="contador">Personas: 0/20</div>
   </div>
@@ -589,7 +644,31 @@
   </div>
 </div>
 
-<script>
+
+<script type="module">
+// Import Firebase
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, set, onValue, update } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+// Firebase Configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyAFg5RoFQsEXnfu9Lw3-CaBl5F2LazCEW8",
+  authDomain: "legendsfc-dfbe5.firebaseapp.com",
+  databaseURL: "https://legendsfc-dfbe5-default-rtdb.firebaseio.com",
+  projectId: "legendsfc-dfbe5",
+  storageBucket: "legendsfc-dfbe5.firebasestorage.app",
+  messagingSenderId: "63176493209",
+  appId: "1:63176493209:web:a0059c2a6bd5c16a845008"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const database = getDatabase(app);
+
+// Referencias
+const datosRef = ref(database, 'puntuacion');
+const configRef = ref(database, 'configuracion');
+
 const datosFijos = [
   { nombre: "snoppy", puntuacion: 200 },
   { nombre: "iker", puntuacion: 400 },
@@ -605,58 +684,77 @@ let timeRemaining = 300;
 let ordenActual = 'ninguno';
 let busquedaActual = '';
 let draggedIndex = null;
+let firebaseConnected = false;
 
 const CLAVE = "0000";
 let MAX_PERSONAS = 20;
 let MAX_PUNTUACION = 900;
-let SESSION_DURATION = 300;
+let SESSION_DURATION = 600;
 
-function inicializar() {
-  const savedAnterior = localStorage.getItem("semanaAnterior");
-  const savedActual = localStorage.getItem("semanaActual");
-  const savedConfig = localStorage.getItem("configuracion");
+// Cargar datos desde Firebase
+onValue(datosRef, (snapshot) => {
+  const data = snapshot.val();
   
-  semanaAnterior = savedAnterior ? JSON.parse(savedAnterior) : datosFijos;
-  semanaActual = savedActual ? JSON.parse(savedActual) : [];
+  if (data) {
+    semanaAnterior = data.semanaAnterior || datosFijos;
+    semanaActual = data.semanaActual || [];
+  } else {
+    // Inicializar con datos por defecto
+    semanaAnterior = datosFijos;
+    semanaActual = [];
+    guardarFirebase();
+  }
   
-  if (savedConfig) {
-    const config = JSON.parse(savedConfig);
+  if (!firebaseConnected) {
+    firebaseConnected = true;
+    updateSyncStatus(true);
+    document.getElementById('loadingScreen').style.display = 'none';
+  }
+  
+  mostrar();
+});
+
+// Cargar configuración desde Firebase
+onValue(configRef, (snapshot) => {
+  const config = snapshot.val();
+  
+  if (config) {
     MAX_PERSONAS = config.maxPersonas || 20;
     MAX_PUNTUACION = config.maxPuntuacion || 900;
     SESSION_DURATION = config.sessionTime || 300;
+    
     document.getElementById('maxPersonas').value = MAX_PERSONAS;
     document.getElementById('maxPuntuacion').value = MAX_PUNTUACION;
     document.getElementById('sessionTime').value = SESSION_DURATION / 60;
     document.getElementById('puntuacion').max = MAX_PUNTUACION;
     document.getElementById('maxDisplay').textContent = MAX_PUNTUACION;
   }
-  
-  mostrar();
+});
+
+function guardarFirebase() {
+  set(datosRef, {
+    semanaAnterior: semanaAnterior,
+    semanaActual: semanaActual,
+    ultimaActualizacion: new Date().toISOString()
+  }).catch((error) => {
+    console.error("Error guardando:", error);
+    showToast('Error al sincronizar con el servidor', 'error');
+  });
 }
 
-function guardar() {
-  localStorage.setItem("semanaAnterior", JSON.stringify(semanaAnterior));
-  localStorage.setItem("semanaActual", JSON.stringify(semanaActual));
-}
 
-function guardarConfiguracion() {
-  const config = {
-    maxPersonas: parseInt(document.getElementById('maxPersonas').value),
-    maxPuntuacion: parseInt(document.getElementById('maxPuntuacion').value),
-    sessionTime: parseInt(document.getElementById('sessionTime').value) * 60
-  };
+
+function updateSyncStatus(connected) {
+  const statusEl = document.getElementById('syncStatus');
+  const textEl = document.getElementById('syncText');
   
-  MAX_PERSONAS = config.maxPersonas;
-  MAX_PUNTUACION = config.maxPuntuacion;
-  SESSION_DURATION = config.sessionTime;
-  
-  document.getElementById('puntuacion').max = MAX_PUNTUACION;
-  document.getElementById('maxDisplay').textContent = MAX_PUNTUACION;
-  
-  localStorage.setItem("configuracion", JSON.stringify(config));
-  showToast('Configuración guardada', 'success');
-  closeModal('settingsModal');
-  mostrar();
+  if (connected) {
+    statusEl.className = 'sync-status connected';
+    textEl.textContent = 'Sincronizado ✓';
+  } else {
+    statusEl.className = 'sync-status disconnected';
+    textEl.textContent = 'Sin conexión';
+  }
 }
 
 function mostrar() {
@@ -687,7 +785,7 @@ function mostrar() {
   `;
   cont.appendChild(seccionAnt);
 
-  // Tabla Semana Actual (con filtros y ordenamiento)
+  // Tabla Semana Actual
   let listaFiltrada = [...semanaActual];
   
   if (busquedaActual) {
@@ -723,8 +821,8 @@ function mostrar() {
               ${modoAdmin ? `
                 <td>
                   <div class="action-buttons">
-                    <button class="icon-btn" onclick="editarPersona(${indexOriginal})" title="Editar">✏️</button>
-                    <button class="icon-btn" onclick="eliminarPersona(${indexOriginal})" title="Eliminar">🗑️</button>
+                    <button class="icon-btn" onclick="window.editarPersona(${indexOriginal})" title="Editar">✏️</button>
+                    <button class="icon-btn" onclick="window.eliminarPersona(${indexOriginal})" title="Eliminar">🗑️</button>
                   </div>
                 </td>` : ''}
             </tr>`;
@@ -734,12 +832,10 @@ function mostrar() {
   `;
   cont.appendChild(seccionAct);
 
-  // Habilitar drag and drop
   if (modoAdmin && ordenActual === 'ninguno') {
     habilitarDragDrop();
   }
 
-  // Actualizar controles
   const limiteAlcanzado = semanaActual.length >= MAX_PERSONAS;
   document.getElementById("nombre").disabled = !modoAdmin || limiteAlcanzado;
   document.getElementById("puntuacion").disabled = !modoAdmin || limiteAlcanzado;
@@ -779,15 +875,15 @@ function habilitarDragDrop() {
       if (draggedIndex !== null && draggedIndex !== targetIndex) {
         const item = semanaActual.splice(draggedIndex, 1)[0];
         semanaActual.splice(targetIndex, 0, item);
-        guardar();
+        guardarFirebase();
         mostrar();
-        showToast('Orden actualizado', 'success');
+        showToast('Orden actualizado y sincronizado', 'success');
       }
     });
   });
 }
 
-function agregarPersona() {
+window.agregarPersona = function() {
   if (!modoAdmin) {
     showToast('Debes desbloquear el modo edición', 'error');
     return;
@@ -811,23 +907,22 @@ function agregarPersona() {
     return;
   }
   
-  // Validar duplicados
   if (semanaActual.some(p => p.nombre.toLowerCase() === nombre.toLowerCase())) {
     showToast('Ya existe una persona con ese nombre', 'error');
     return;
   }
 
   semanaActual.push({ nombre, puntuacion });
-  guardar();
+  guardarFirebase();
   mostrar();
   
   document.getElementById("nombre").value = "";
   document.getElementById("puntuacion").value = "";
   
-  showToast(`${nombre} agregado correctamente`, 'success');
+  showToast(`${nombre} agregado y sincronizado`, 'success');
 }
 
-function editarPersona(index) {
+window.editarPersona = function(index) {
   if (!modoAdmin) return;
   
   const persona = semanaActual[index];
@@ -840,7 +935,6 @@ function editarPersona(index) {
     return;
   }
   
-  // Validar duplicados (excepto el mismo)
   if (semanaActual.some((p, i) => i !== index && p.nombre.toLowerCase() === nuevoNombre.trim().toLowerCase())) {
     showToast('Ya existe una persona con ese nombre', 'error');
     return;
@@ -858,42 +952,41 @@ function editarPersona(index) {
   }
 
   semanaActual[index] = { nombre: nuevoNombre.trim(), puntuacion: puntos };
-  guardar();
+  guardarFirebase();
   mostrar();
-  showToast('Persona actualizada', 'success');
+  showToast('Persona actualizada y sincronizada', 'success');
 }
 
-function eliminarPersona(index) {
+window.eliminarPersona = function(index) {
   if (!modoAdmin) return;
   
   const persona = semanaActual[index];
   
   if (confirm(`¿Seguro que quieres eliminar a ${persona.nombre}?`)) {
     semanaActual.splice(index, 1);
-    guardar();
+    guardarFirebase();
     mostrar();
-    showToast('Persona eliminada', 'success');
+    showToast('Persona eliminada y sincronizada', 'success');
   }
 }
 
-function nuevaSemana() {
+window.nuevaSemana = function() {
   semanaAnterior = [...semanaActual];
   semanaActual = [];
-  guardar();
+  guardarFirebase();
   mostrar();
   closeModal('newWeekModal');
-  showToast('Nueva semana iniciada', 'success');
+  showToast('Nueva semana iniciada y sincronizada', 'success');
 }
 
-function aplicarFiltros() {
+window.aplicarFiltros = function() {
   busquedaActual = document.getElementById('searchInput').value;
   mostrar();
 }
 
-function ordenar(tipo) {
+window.ordenar = function(tipo) {
   ordenActual = tipo;
   
-  // Actualizar botones activos
   document.querySelectorAll('.sort-btn').forEach(btn => btn.classList.remove('active'));
   
   if (tipo === 'ninguno') {
@@ -907,7 +1000,7 @@ function ordenar(tipo) {
   mostrar();
 }
 
-function toggleTheme() {
+window.toggleTheme = function() {
   const body = document.body;
   const currentTheme = body.getAttribute('data-theme');
   const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
@@ -920,7 +1013,7 @@ function toggleTheme() {
   showToast(`Tema ${newTheme === 'dark' ? 'oscuro' : 'claro'} activado`, 'success');
 }
 
-function showUnlockModal() {
+window.showUnlockModal = function() {
   document.getElementById('unlockModal').classList.add('show');
   document.getElementById('claveInput').value = '';
   setTimeout(() => {
@@ -928,20 +1021,20 @@ function showUnlockModal() {
   }, 100);
 }
 
-function showNewWeekModal() {
+window.showNewWeekModal = function() {
   if (!modoAdmin) return;
   document.getElementById('newWeekModal').classList.add('show');
 }
 
-function showSettingsModal() {
+window.showSettingsModal = function() {
   document.getElementById('settingsModal').classList.add('show');
 }
 
-function closeModal(modalId) {
+window.closeModal = function(modalId) {
   document.getElementById(modalId).classList.remove('show');
 }
 
-function desbloquear() {
+window.desbloquear = function() {
   const clave = document.getElementById('claveInput').value;
   
   if (clave === CLAVE) {
@@ -1008,7 +1101,9 @@ function showToast(mensaje, tipo = 'success') {
   setTimeout(() => {
     toast.style.animation = 'toastSlide 0.3s ease reverse';
     setTimeout(() => {
-      container.removeChild(toast);
+      if (container.contains(toast)) {
+        container.removeChild(toast);
+      }
     }, 300);
   }, 3000);
 }
@@ -1023,12 +1118,13 @@ document.addEventListener('click', (e) => {
 // Permitir Enter para desbloquear
 document.addEventListener('keypress', (e) => {
   if (e.key === 'Enter' && document.getElementById('unlockModal').classList.contains('show')) {
-    desbloquear();
+    window.desbloquear();
   }
 });
 
-// Inicializar al cargar
-window.addEventListener('load', inicializar);
+// Exportar funciones necesarias
+window.guardarConfiguracion = guardarConfiguracion;
+
 </script>
 
 </body>
