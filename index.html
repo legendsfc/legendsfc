@@ -1,0 +1,1035 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema de Puntuación Semanal</title>
+<style>
+  :root {
+    --bg-primary: #0f172a;
+    --bg-secondary: #1e293b;
+    --bg-card: rgba(30, 41, 59, 0.7);
+    --text-primary: #f1f5f9;
+    --text-secondary: #94a3b8;
+    --accent: #3b82f6;
+    --accent-hover: #2563eb;
+    --success: #10b981;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --border: rgba(148, 163, 184, 0.2);
+    --shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  }
+
+  [data-theme="light"] {
+    --bg-primary: #f8fafc;
+    --bg-secondary: #ffffff;
+    --bg-card: rgba(255, 255, 255, 0.8);
+    --text-primary: #0f172a;
+    --text-secondary: #64748b;
+    --border: rgba(148, 163, 184, 0.3);
+    --shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  }
+
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    padding: 20px;
+    transition: background 0.3s ease, color 0.3s ease;
+    min-height: 100vh;
+  }
+
+  .container {
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+    gap: 15px;
+  }
+
+  h1 {
+    font-size: clamp(1.5rem, 4vw, 2.5rem);
+    background: linear-gradient(135deg, var(--accent), var(--warning));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+
+  .theme-toggle, .unlock-btn {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 10px 15px;
+    border-radius: 12px;
+    cursor: pointer;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
+    font-size: 1.2rem;
+  }
+
+  .theme-toggle:hover, .unlock-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow);
+  }
+
+  .session-timer {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    padding: 10px 15px;
+    border-radius: 12px;
+    backdrop-filter: blur(10px);
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+  }
+
+  .input-section {
+    background: var(--bg-card);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 25px;
+    margin-bottom: 30px;
+    box-shadow: var(--shadow);
+    animation: slideIn 0.5s ease;
+  }
+
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 15px;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  label {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+
+  input[type="text"], input[type="number"], input[type="search"], input[type="password"] {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 12px;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+  }
+
+  input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+
+  input:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .button-group {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  button {
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(59, 130, 246, 0.3);
+  }
+
+  .btn-danger {
+    background: var(--danger);
+    color: white;
+  }
+
+  .btn-danger:hover:not(:disabled) {
+    background: #dc2626;
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(239, 68, 68, 0.3);
+  }
+
+  .btn-secondary {
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+  }
+
+  button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transform: none !important;
+  }
+
+  .search-sort {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  .search-box {
+    flex: 1;
+    min-width: 200px;
+    position: relative;
+  }
+
+  .search-box input {
+    width: 100%;
+    padding-left: 40px;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-secondary);
+  }
+
+  .sort-buttons {
+    display: flex;
+    gap: 10px;
+  }
+
+  .sort-btn {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 10px 15px;
+    border-radius: 8px;
+    backdrop-filter: blur(10px);
+    font-size: 0.9rem;
+  }
+
+  .sort-btn.active {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+  }
+
+  .tables-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 30px;
+    margin-bottom: 30px;
+  }
+
+  .table-section {
+    background: var(--bg-card);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 25px;
+    box-shadow: var(--shadow);
+    animation: fadeIn 0.5s ease;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .table-section h2 {
+    margin-bottom: 20px;
+    font-size: 1.5rem;
+    color: var(--text-primary);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  th, td {
+    padding: 12px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+
+  th {
+    background: var(--bg-secondary);
+    color: var(--text-secondary);
+    font-weight: 600;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+  }
+
+  tr {
+    transition: all 0.3s ease;
+  }
+
+  tbody tr:hover {
+    background: var(--bg-secondary);
+  }
+
+  tbody tr[draggable="true"] {
+    cursor: grab;
+  }
+
+  .repetido {
+    background: rgba(239, 68, 68, 0.1) !important;
+    border-left: 3px solid var(--danger);
+  }
+
+  .dragging {
+    opacity: 0.5;
+    cursor: grabbing;
+  }
+
+  .drag-over {
+    border-top: 3px solid var(--accent);
+  }
+
+  .action-buttons {
+    display: flex;
+    gap: 5px;
+  }
+
+  .icon-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+
+  .icon-btn:hover {
+    background: var(--bg-secondary);
+    transform: scale(1.1);
+  }
+
+  .toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .toast {
+    background: var(--bg-card);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--border);
+    padding: 15px 20px;
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 300px;
+    animation: toastSlide 0.3s ease;
+  }
+
+  @keyframes toastSlide {
+    from {
+      transform: translateX(400px);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  .toast.success { border-left: 4px solid var(--success); }
+  .toast.error { border-left: 4px solid var(--danger); }
+  .toast.warning { border-left: 4px solid var(--warning); }
+
+  .modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(5px);
+    z-index: 999;
+    align-items: center;
+    justify-content: center;
+    animation: modalFade 0.3s ease;
+  }
+
+  @keyframes modalFade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .modal.show {
+    display: flex;
+  }
+
+  .modal-content {
+    background: var(--bg-card);
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 30px;
+    max-width: 500px;
+    width: 90%;
+    box-shadow: var(--shadow);
+    animation: modalSlide 0.3s ease;
+  }
+
+  @keyframes modalSlide {
+    from {
+      transform: translateY(-50px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+
+  .modal-header h3 {
+    font-size: 1.3rem;
+  }
+
+  .close-modal {
+    background: transparent;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--text-secondary);
+    padding: 5px;
+  }
+
+  .modal-footer {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+    justify-content: flex-end;
+  }
+
+  .settings-grid {
+    display: grid;
+    gap: 15px;
+  }
+
+  .counter {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    padding: 10px 15px;
+    border-radius: 8px;
+    text-align: center;
+    font-weight: 600;
+  }
+
+  @media (max-width: 768px) {
+    .tables-container {
+      grid-template-columns: 1fr;
+    }
+    
+    .form-grid {
+      grid-template-columns: 1fr;
+    }
+    
+    .search-sort {
+      flex-direction: column;
+    }
+    
+    .sort-buttons {
+      width: 100%;
+      flex-wrap: wrap;
+    }
+  }
+</style>
+</head>
+<body data-theme="dark">
+
+<div class="container">
+  <div class="header">
+    <h1>🏆 Sistema de Puntuación Semanal</h1>
+    <div class="controls">
+      <div class="session-timer" id="sessionTimer" style="display:none;">
+        ⏱️ Sesión: <span id="timerText">5:00</span>
+      </div>
+      <button class="theme-toggle" onclick="toggleTheme()">🌙</button>
+      <button class="unlock-btn" onclick="showUnlockModal()">🔓</button>
+    </div>
+  </div>
+
+  <div class="input-section">
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Nombre</label>
+        <input type="text" id="nombre" placeholder="Nombre de la persona" disabled>
+      </div>
+      <div class="form-group">
+        <label>Puntuación (0 - <span id="maxDisplay">900</span>)</label>
+        <input type="number" id="puntuacion" placeholder="0" min="0" max="900" disabled>
+      </div>
+    </div>
+    <div class="button-group">
+      <button class="btn-primary" id="btnAgregar" onclick="agregarPersona()" disabled>
+        ➕ Agregar
+      </button>
+      <button class="btn-danger" id="btnSemana" onclick="showNewWeekModal()" disabled>
+        📅 Nueva Semana
+      </button>
+      
+    </div>
+    <div class="counter" id="contador">Personas: 0/20</div>
+  </div>
+
+  <div class="search-sort">
+    <div class="search-box">
+      <span class="search-icon">🔍</span>
+      <input type="search" id="searchInput" placeholder="Buscar persona..." oninput="aplicarFiltros()">
+    </div>
+    <div class="sort-buttons">
+      <button class="sort-btn active" id="sortOriginal" onclick="ordenar('ninguno')">📋 Original</button>
+      <button class="sort-btn" id="sortNombre" onclick="ordenar('nombre')">🔤 Nombre</button>
+      <button class="sort-btn" id="sortPuntuacion" onclick="ordenar('puntuacion')">📊 Puntuación</button>
+    </div>
+  </div>
+
+  <div class="tables-container" id="contenedorTablas"></div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Modal de Desbloqueo -->
+<div class="modal" id="unlockModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>🔐 Desbloquear Edición</h3>
+      <button class="close-modal" onclick="closeModal('unlockModal')">×</button>
+    </div>
+    <div class="form-group">
+      <label>Clave de administrador</label>
+      <input type="password" id="claveInput" placeholder="Ingresa la clave">
+    </div>
+    <div class="modal-footer">
+      <button class="btn-primary" onclick="desbloquear()">Desbloquear</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Nueva Semana -->
+<div class="modal" id="newWeekModal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>📅 Nueva Semana</h3>
+      <button class="close-modal" onclick="closeModal('newWeekModal')">×</button>
+    </div>
+    <p style="margin-bottom: 20px; color: var(--text-secondary);">¿Seguro que quieres iniciar una nueva semana? Los datos de la semana anterior se conservarán.</p>
+    <div class="modal-footer">
+      <button class="btn-secondary" onclick="closeModal('newWeekModal')">Cancelar</button>
+      <button class="btn-danger" onclick="nuevaSemana()">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const datosFijos = [
+  { nombre: "snoppy", puntuacion: 200 },
+  { nombre: "iker", puntuacion: 400 },
+  { nombre: "kowsalski", puntuacion: 200 },
+  { nombre: "dead", puntuacion: 240 }
+];
+
+let semanaAnterior = [];
+let semanaActual = [];
+let modoAdmin = false;
+let sessionTimer = null;
+let timeRemaining = 300;
+let ordenActual = 'ninguno';
+let busquedaActual = '';
+let draggedIndex = null;
+
+const CLAVE = "0000";
+let MAX_PERSONAS = 20;
+let MAX_PUNTUACION = 900;
+let SESSION_DURATION = 300;
+
+function inicializar() {
+  const savedAnterior = localStorage.getItem("semanaAnterior");
+  const savedActual = localStorage.getItem("semanaActual");
+  const savedConfig = localStorage.getItem("configuracion");
+  
+  semanaAnterior = savedAnterior ? JSON.parse(savedAnterior) : datosFijos;
+  semanaActual = savedActual ? JSON.parse(savedActual) : [];
+  
+  if (savedConfig) {
+    const config = JSON.parse(savedConfig);
+    MAX_PERSONAS = config.maxPersonas || 20;
+    MAX_PUNTUACION = config.maxPuntuacion || 900;
+    SESSION_DURATION = config.sessionTime || 300;
+    document.getElementById('maxPersonas').value = MAX_PERSONAS;
+    document.getElementById('maxPuntuacion').value = MAX_PUNTUACION;
+    document.getElementById('sessionTime').value = SESSION_DURATION / 60;
+    document.getElementById('puntuacion').max = MAX_PUNTUACION;
+    document.getElementById('maxDisplay').textContent = MAX_PUNTUACION;
+  }
+  
+  mostrar();
+}
+
+function guardar() {
+  localStorage.setItem("semanaAnterior", JSON.stringify(semanaAnterior));
+  localStorage.setItem("semanaActual", JSON.stringify(semanaActual));
+}
+
+function guardarConfiguracion() {
+  const config = {
+    maxPersonas: parseInt(document.getElementById('maxPersonas').value),
+    maxPuntuacion: parseInt(document.getElementById('maxPuntuacion').value),
+    sessionTime: parseInt(document.getElementById('sessionTime').value) * 60
+  };
+  
+  MAX_PERSONAS = config.maxPersonas;
+  MAX_PUNTUACION = config.maxPuntuacion;
+  SESSION_DURATION = config.sessionTime;
+  
+  document.getElementById('puntuacion').max = MAX_PUNTUACION;
+  document.getElementById('maxDisplay').textContent = MAX_PUNTUACION;
+  
+  localStorage.setItem("configuracion", JSON.stringify(config));
+  showToast('Configuración guardada', 'success');
+  closeModal('settingsModal');
+  mostrar();
+}
+
+function mostrar() {
+  const cont = document.getElementById("contenedorTablas");
+  cont.innerHTML = "";
+
+  const nombresAnterior = semanaAnterior.map(p => p.nombre.toLowerCase());
+  const nombresActual = semanaActual.map(p => p.nombre.toLowerCase());
+  const repetidos = new Set(nombresAnterior.filter(n => nombresActual.includes(n)));
+
+  // Tabla Semana Anterior
+  const seccionAnt = document.createElement("div");
+  seccionAnt.className = "table-section";
+  seccionAnt.innerHTML = `
+    <h2>📋 Semana Anterior</h2>
+    <table>
+      <thead>
+        <tr><th>Nombre</th><th>Puntuación</th></tr>
+      </thead>
+      <tbody>
+        ${semanaAnterior.map(p => `
+          <tr class="${repetidos.has(p.nombre.toLowerCase()) ? 'repetido' : ''}">
+            <td>${p.nombre}</td>
+            <td>${p.puntuacion}</td>
+          </tr>`).join('')}
+      </tbody>
+    </table>
+  `;
+  cont.appendChild(seccionAnt);
+
+  // Tabla Semana Actual (con filtros y ordenamiento)
+  let listaFiltrada = [...semanaActual];
+  
+  if (busquedaActual) {
+    listaFiltrada = listaFiltrada.filter(p => 
+      p.nombre.toLowerCase().includes(busquedaActual.toLowerCase())
+    );
+  }
+  
+  if (ordenActual === 'nombre') {
+    listaFiltrada.sort((a, b) => a.nombre.localeCompare(b.nombre));
+  } else if (ordenActual === 'puntuacion') {
+    listaFiltrada.sort((a, b) => b.puntuacion - a.puntuacion);
+  }
+
+  const seccionAct = document.createElement("div");
+  seccionAct.className = "table-section";
+  seccionAct.innerHTML = `
+    <h2>✨ Semana Actual</h2>
+    <table>
+      <thead>
+        <tr><th>Nombre</th><th>Puntuación</th>${modoAdmin ? '<th>Acciones</th>' : ''}</tr>
+      </thead>
+      <tbody id="tablaActualBody">
+        ${listaFiltrada.length === 0 ? '<tr><td colspan="3" style="text-align:center;">No hay resultados</td></tr>' : 
+          listaFiltrada.map((p) => {
+            const indexOriginal = semanaActual.findIndex(x => x === p);
+            return `
+            <tr class="${repetidos.has(p.nombre.toLowerCase()) ? 'repetido' : ''}" 
+                draggable="${modoAdmin && ordenActual === 'ninguno'}" 
+                data-index="${indexOriginal}">
+              <td>${p.nombre}</td>
+              <td>${p.puntuacion}</td>
+              ${modoAdmin ? `
+                <td>
+                  <div class="action-buttons">
+                    <button class="icon-btn" onclick="editarPersona(${indexOriginal})" title="Editar">✏️</button>
+                    <button class="icon-btn" onclick="eliminarPersona(${indexOriginal})" title="Eliminar">🗑️</button>
+                  </div>
+                </td>` : ''}
+            </tr>`;
+          }).join('')}
+      </tbody>
+    </table>
+  `;
+  cont.appendChild(seccionAct);
+
+  // Habilitar drag and drop
+  if (modoAdmin && ordenActual === 'ninguno') {
+    habilitarDragDrop();
+  }
+
+  // Actualizar controles
+  const limiteAlcanzado = semanaActual.length >= MAX_PERSONAS;
+  document.getElementById("nombre").disabled = !modoAdmin || limiteAlcanzado;
+  document.getElementById("puntuacion").disabled = !modoAdmin || limiteAlcanzado;
+  document.getElementById("btnAgregar").disabled = !modoAdmin || limiteAlcanzado;
+  document.getElementById("btnSemana").disabled = !modoAdmin;
+
+  document.getElementById("contador").textContent = `Personas: ${semanaActual.length}/${MAX_PERSONAS}`;
+}
+
+function habilitarDragDrop() {
+  const filas = document.querySelectorAll('#tablaActualBody tr[draggable="true"]');
+  
+  filas.forEach(fila => {
+    fila.addEventListener('dragstart', (e) => {
+      draggedIndex = parseInt(e.target.dataset.index);
+      e.target.classList.add('dragging');
+    });
+    
+    fila.addEventListener('dragend', (e) => {
+      e.target.classList.remove('dragging');
+      document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    });
+    
+    fila.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.target.closest('tr').classList.add('drag-over');
+    });
+    
+    fila.addEventListener('dragleave', (e) => {
+      e.target.closest('tr').classList.remove('drag-over');
+    });
+    
+    fila.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const targetIndex = parseInt(e.target.closest('tr').dataset.index);
+      
+      if (draggedIndex !== null && draggedIndex !== targetIndex) {
+        const item = semanaActual.splice(draggedIndex, 1)[0];
+        semanaActual.splice(targetIndex, 0, item);
+        guardar();
+        mostrar();
+        showToast('Orden actualizado', 'success');
+      }
+    });
+  });
+}
+
+function agregarPersona() {
+  if (!modoAdmin) {
+    showToast('Debes desbloquear el modo edición', 'error');
+    return;
+  }
+  
+  if (semanaActual.length >= MAX_PERSONAS) {
+    showToast(`No se pueden agregar más de ${MAX_PERSONAS} personas`, 'error');
+    return;
+  }
+
+  const nombre = document.getElementById("nombre").value.trim();
+  const puntuacion = parseInt(document.getElementById("puntuacion").value);
+
+  if (!nombre || isNaN(puntuacion)) {
+    showToast('Completa todos los campos', 'error');
+    return;
+  }
+  
+  if (puntuacion < 0 || puntuacion > MAX_PUNTUACION) {
+    showToast(`La puntuación debe estar entre 0 y ${MAX_PUNTUACION}`, 'error');
+    return;
+  }
+  
+  // Validar duplicados
+  if (semanaActual.some(p => p.nombre.toLowerCase() === nombre.toLowerCase())) {
+    showToast('Ya existe una persona con ese nombre', 'error');
+    return;
+  }
+
+  semanaActual.push({ nombre, puntuacion });
+  guardar();
+  mostrar();
+  
+  document.getElementById("nombre").value = "";
+  document.getElementById("puntuacion").value = "";
+  
+  showToast(`${nombre} agregado correctamente`, 'success');
+}
+
+function editarPersona(index) {
+  if (!modoAdmin) return;
+  
+  const persona = semanaActual[index];
+  const nuevoNombre = prompt('Nuevo nombre:', persona.nombre);
+  
+  if (nuevoNombre === null) return;
+  
+  if (!nuevoNombre.trim()) {
+    showToast('El nombre no puede estar vacío', 'error');
+    return;
+  }
+  
+  // Validar duplicados (excepto el mismo)
+  if (semanaActual.some((p, i) => i !== index && p.nombre.toLowerCase() === nuevoNombre.trim().toLowerCase())) {
+    showToast('Ya existe una persona con ese nombre', 'error');
+    return;
+  }
+  
+  const nuevaPuntuacion = prompt('Nueva puntuación:', persona.puntuacion);
+  
+  if (nuevaPuntuacion === null) return;
+  
+  const puntos = parseInt(nuevaPuntuacion);
+  
+  if (isNaN(puntos) || puntos < 0 || puntos > MAX_PUNTUACION) {
+    showToast(`La puntuación debe estar entre 0 y ${MAX_PUNTUACION}`, 'error');
+    return;
+  }
+
+  semanaActual[index] = { nombre: nuevoNombre.trim(), puntuacion: puntos };
+  guardar();
+  mostrar();
+  showToast('Persona actualizada', 'success');
+}
+
+function eliminarPersona(index) {
+  if (!modoAdmin) return;
+  
+  const persona = semanaActual[index];
+  
+  if (confirm(`¿Seguro que quieres eliminar a ${persona.nombre}?`)) {
+    semanaActual.splice(index, 1);
+    guardar();
+    mostrar();
+    showToast('Persona eliminada', 'success');
+  }
+}
+
+function nuevaSemana() {
+  semanaAnterior = [...semanaActual];
+  semanaActual = [];
+  guardar();
+  mostrar();
+  closeModal('newWeekModal');
+  showToast('Nueva semana iniciada', 'success');
+}
+
+function aplicarFiltros() {
+  busquedaActual = document.getElementById('searchInput').value;
+  mostrar();
+}
+
+function ordenar(tipo) {
+  ordenActual = tipo;
+  
+  // Actualizar botones activos
+  document.querySelectorAll('.sort-btn').forEach(btn => btn.classList.remove('active'));
+  
+  if (tipo === 'ninguno') {
+    document.getElementById('sortOriginal').classList.add('active');
+  } else if (tipo === 'nombre') {
+    document.getElementById('sortNombre').classList.add('active');
+  } else if (tipo === 'puntuacion') {
+    document.getElementById('sortPuntuacion').classList.add('active');
+  }
+  
+  mostrar();
+}
+
+function toggleTheme() {
+  const body = document.body;
+  const currentTheme = body.getAttribute('data-theme');
+  const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+  
+  body.setAttribute('data-theme', newTheme);
+  
+  const themeBtn = document.querySelector('.theme-toggle');
+  themeBtn.textContent = newTheme === 'dark' ? '🌙' : '☀️';
+  
+  showToast(`Tema ${newTheme === 'dark' ? 'oscuro' : 'claro'} activado`, 'success');
+}
+
+function showUnlockModal() {
+  document.getElementById('unlockModal').classList.add('show');
+  document.getElementById('claveInput').value = '';
+  setTimeout(() => {
+    document.getElementById('claveInput').focus();
+  }, 100);
+}
+
+function showNewWeekModal() {
+  if (!modoAdmin) return;
+  document.getElementById('newWeekModal').classList.add('show');
+}
+
+function showSettingsModal() {
+  document.getElementById('settingsModal').classList.add('show');
+}
+
+function closeModal(modalId) {
+  document.getElementById(modalId).classList.remove('show');
+}
+
+function desbloquear() {
+  const clave = document.getElementById('claveInput').value;
+  
+  if (clave === CLAVE) {
+    modoAdmin = true;
+    closeModal('unlockModal');
+    showToast('Modo edición habilitado ✅', 'success');
+    iniciarSesion();
+    mostrar();
+  } else {
+    showToast('❌ Clave incorrecta', 'error');
+    document.getElementById('claveInput').value = '';
+  }
+}
+
+function iniciarSesion() {
+  timeRemaining = SESSION_DURATION;
+  document.getElementById('sessionTimer').style.display = 'block';
+  actualizarTimer();
+  
+  if (sessionTimer) {
+    clearInterval(sessionTimer);
+  }
+  
+  sessionTimer = setInterval(() => {
+    timeRemaining--;
+    actualizarTimer();
+    
+    if (timeRemaining <= 0) {
+      cerrarSesion();
+    }
+  }, 1000);
+}
+
+function actualizarTimer() {
+  const minutos = Math.floor(timeRemaining / 60);
+  const segundos = timeRemaining % 60;
+  document.getElementById('timerText').textContent = 
+    `${minutos}:${segundos.toString().padStart(2, '0')}`;
+}
+
+function cerrarSesion() {
+  modoAdmin = false;
+  clearInterval(sessionTimer);
+  document.getElementById('sessionTimer').style.display = 'none';
+  showToast('Sesión expirada. Modo edición bloqueado', 'warning');
+  mostrar();
+}
+
+function showToast(mensaje, tipo = 'success') {
+  const container = document.getElementById('toastContainer');
+  
+  const toast = document.createElement('div');
+  toast.className = `toast ${tipo}`;
+  
+  const icono = tipo === 'success' ? '✅' : tipo === 'error' ? '❌' : '⚠️';
+  
+  toast.innerHTML = `
+    <span style="font-size: 1.2rem;">${icono}</span>
+    <span>${mensaje}</span>
+  `;
+  
+  container.appendChild(toast);
+  
+  setTimeout(() => {
+    toast.style.animation = 'toastSlide 0.3s ease reverse';
+    setTimeout(() => {
+      container.removeChild(toast);
+    }, 300);
+  }, 3000);
+}
+
+// Cerrar modales al hacer clic fuera
+document.addEventListener('click', (e) => {
+  if (e.target.classList.contains('modal')) {
+    e.target.classList.remove('show');
+  }
+});
+
+// Permitir Enter para desbloquear
+document.addEventListener('keypress', (e) => {
+  if (e.key === 'Enter' && document.getElementById('unlockModal').classList.contains('show')) {
+    desbloquear();
+  }
+});
+
+// Inicializar al cargar
+window.addEventListener('load', inicializar);
+</script>
+
+</body>
+</html>
